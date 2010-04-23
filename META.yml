@@ -1,0 +1,32 @@
+---
+abstract: 'Web toolkit for the long hair, or comet'
+author:
+  - 'Chia-liang Kao <clkao@clkao.org>'
+build_requires:
+  ExtUtils::MakeMaker: 6.42
+  Test::More: 0
+  Test::Requires: 0
+configure_requires:
+  ExtUtils::MakeMaker: 6.42
+distribution_type: module
+generated_by: 'Module::Install version 0.94'
+license: perl
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: Web-Hippie
+no_index:
+  directory:
+    - inc
+    - share
+    - t
+    - xt
+requires:
+  AnyMQ: 0.30
+  HTTP::Date: 0
+  Plack: 0
+  perl: 5.8.1
+resources:
+  license: http://dev.perl.org/licenses/
+  repository: git://github.com/clkao/Web-Hippie.git
+version: 0.30
