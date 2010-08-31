@@ -2,10 +2,10 @@ package Web::Hippie;
 
 use strict;
 use 5.008_001;
-our $VERSION = '0.32';
+our $VERSION = '0.33';
 use parent 'Plack::Middleware';
 
-use Plack::Util::Accessor qw( root init on_error on_message );
+use Plack::Util::Accessor qw( root init on_error on_message trusted_origin );
 use AnyEvent;
 use AnyEvent::Handle;
 use Plack::Request;
@@ -149,6 +149,14 @@ sub handler_ws {
     my $client_id = $req->param('client_id') || rand(1);
 
     if ($env->{HTTP_SEC_WEBSOCKET_KEY1}) { # ver 76+
+
+        my $trusted_origin = $self->trusted_origin || '.*';
+        if ($env->{HTTP_ORIGIN} !~ m/^$trusted_origin/) {
+            $env->{'psgi.errors'}->print("Client origin $env->{HTTP_ORIGIN} not allowed.\n");
+            return [403, ['Content-Type' => 'text/plain'], ['origin not allowed']];
+        }
+
+
         return sub {
             my $respond = shift;
             my $protocol = $env->{HTTP_SEC_WEBSOCKET_PROTOCOL};
@@ -169,7 +177,7 @@ sub handler_ws {
             # rather than using push_read
             my $key3;
             read $fh, $key3, 8 or warn $!;
-            my $h = AnyEvent::Handle->new( fh => $fh );
+            my $h = AnyEvent::Handle->new( fh => $fh, autocork => 1 );
 
             use Web::Hippie::Handle::WebSocket;
             $env->{'hippie.handle'} = Web::Hippie::Handle::WebSocket->new
@@ -189,9 +197,17 @@ sub handler_ws {
             $h->on_read(sub {
                             shift->push_read( line => "\xff", sub {
                                                   my ($h, $json) = @_;
-                                                  $json =~ s/^\0//;
+                                                  unless ($json =~ s/^\0//) {
+                                                      # closing
+                                                      return $h->on_error();
+                                                  }
 
-                                                  $env->{'hippie.message'} = JSON::decode_json($json);
+                                                  $env->{'hippie.message'} = eval { JSON::decode_json($json) };
+                                                  if ($@) {
+                                                      warn $@;
+                                                      return $h->on_error();
+                                                  }
+
                                                   $env->{'PATH_INFO'} = '/message';
                                                   $handler->($env);
                                               });
@@ -242,7 +258,12 @@ sub handler_ws {
                                               my ($h, $json) = @_;
                                               $json =~ s/^\0//;
 
-                                              $env->{'hippie.message'} = JSON::decode_json($json);
+                                              $env->{'hippie.message'} = eval { JSON::decode_json($json) };
+                                              if ($@) {
+                                                  warn $@;
+                                                  return $h->on_error();
+                                              }
+
                                               $env->{'PATH_INFO'} = '/message';
                                               $handler->($env);
                 });
