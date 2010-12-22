@@ -1,9 +1,20 @@
 package Web::Hippie::Handle::MXHR;
-use Moose;
-
+BEGIN {
+    eval "use Class::XSAccessor::Compat 'antlers'; 1" or
+    eval "use Class::Accessor::Fast 'antlers'; 1" or die $@;
+}
 has id => (is => "ro");
 has boundary => (is => "ro");
 has writer => (is => "ro");
+
+sub new {
+    my $class = shift;
+    unless (ref $_[0] eq 'HASH') {
+        Carp::carp "use of hash in constructor is deprecated. use hashref please instead.";
+        @_ = { @_ };
+    }
+    return $class->SUPER::new(@_);
+}
 
 sub send_msg {
     my ($self, $msg) = @_;
@@ -12,8 +23,6 @@ sub send_msg {
     $self->writer->write( "Content-Type: application/json\n\n$json\n--" . $self->boundary. "\n" );
 }
 
-__PACKAGE__->meta->make_immutable;
-no Moose;
 1;
 __END__
 
